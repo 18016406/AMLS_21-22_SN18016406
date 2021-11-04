@@ -4,7 +4,8 @@ import func as myf
 import skimage.io as si
 import csv
 from skimage.transform import resize
-import sklearn as sl
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 
 ## IMPORTING IMAGES ##
 imagelist = glob.glob('testimport/*.jpg')  # Creates list of names of JPEG files in specified folder
@@ -26,17 +27,35 @@ for j in trimmedimages:
 
 print('length of segmented images list: ', len(segimg))
 
-## CREATING ARRAY OF FEATURES ##
-features = np.array([0, 0])
+## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
+povfeatures = np.array([0, 0])
 for k in segimg:
     tempmeans = np.array([np.mean(k[:, 0]), np.mean(k[-1, :])])
-    features = np.vstack([features, tempmeans])  # Makes an array of features, first column is mean of pic's left
+    povfeatures = np.vstack([povfeatures, tempmeans])  # Makes an array of features, first column is mean of pic's left
                                                 # column values and second column is mean of pic's last row values
-features = np.delete(features, 0, 0)  # Removes the initialized value [0,0] at the top of features array
+povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value [0,0] at the top of features array
 
 ## READING LABELS ##
+csvfile = open('labelapp.csv')
+labelsfile = csv.reader(csvfile, delimiter=',')
+imgname = []
+imglabel = []
+imgpov = []
+labelsfile.__next__()
+for row in labelsfile:
+    imgname.append(row[0])
+    imglabel.append(row[1])
+    imgpov.append(row[2])
+csvfile.close()
 
+## *****FOR TESTING ONLY***** ##
+testlabelpov = imgpov[:1000]
 
+xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, testlabelpov)
+ypredict = myf.LogisticRegressionPredict(xtrain,ytrain,xtest)
+print('Accuracy on test set: '+str(accuracy_score(ytest,ypredict)))
+print(classification_report(ytest,ypredict))
+print(confusion_matrix(ytest,ypredict))
 
 # si.imshow(segimg[1])
 # si.show()
