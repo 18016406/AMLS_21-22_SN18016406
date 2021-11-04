@@ -16,11 +16,12 @@ trimmedimages = []
 for i in range(0, len(imagelist)):
     trimmedimages.append(myf.trim0rows(images[i][:][:]))  # Creates a list of the imported images after being cropped
 
-testimg = trimmedimages[0]
-print('test image shape: ', testimg.shape)
+segimg = []
+for j in trimmedimages:
+    segimg.append(resize(j, np.array([150,100]), anti_aliasing=True)) # Resizes images after trimming to normalize all sizes
 
-segmentedimg = resize(testimg, np.array([150, 100]), anti_aliasing=True)    # Resizes images after trimming to normalize all sizes
-si.imshow(segmentedimg)
+print('length of segmented images list: ', len(segimg))
+
+si.imshow(segimg[0])
 si.show()
 
-print('resized image shape: ', segmentedimg.shape)
