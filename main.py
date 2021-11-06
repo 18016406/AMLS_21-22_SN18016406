@@ -10,9 +10,11 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier
 
 ## IMPORTING IMAGES ##
-imagelist = glob.glob('testimport/*.jpg')  # Creates list of names of JPEG files in specified folder
+imagelist = glob.glob('image/*.jpg')  # Creates list of names of JPEG files in specified folder
 images = np.array(
     [si.imread(image, as_gray=True) for image in imagelist])  # import images, ensuring grayscale, into a 3D ndarray
+for image in images:
+    image[image > 0.98] = 0.99
 
 print('images array shape: ', images.shape)
 print('No. of images: ', len(imagelist))
@@ -37,7 +39,7 @@ for i in range(0, len(imagelist)):
 for j in range(0, len(imagelist)):
     si.imsave('trimmed/trimmedIMG_{}.jpg'.format(j), img_as_ubyte(trimmedimages[j]))
 
-segimg = []
+segimg = []  # A list of images after normalizing to a standard resolution
 for k in trimmedimages:
     segimg.append(
         resize(k, np.array([250, 200]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
@@ -46,33 +48,33 @@ for l in range(0, len(segimg)):
 print('length of segmented images list: ', len(segimg))
 
 ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
-selectimgset = 1        #Select which img set to use in model (0 = before trimming/segmenting, 1 = after)
-povfeatures = np.array([0, 0])
+selectimgset = 1  # Select which img set to use in model (0 = before trimming/segmenting, 1 = after)
+povfeatures = np.zeros(203)
 if selectimgset == 0:
-    for k in range(0, len(imagelist)):
-        selectedimage = images[k][:][:]
-        tempmeans = np.array([np.mean(selectedimage[:,5]), np.mean(selectedimage[-1, :])])
-        povfeatures = np.vstack([povfeatures, tempmeans])  # Makes an array of features, first column is mean of pic's 6th
-                                                        # column values and second column is mean of pic's last row values
-elif selectimgset == 1:
+    for k in range(0, len(imagelist)):  # Makes an array of features, first column is mean of pic's 6th
+        selectedimage = images[k][:][:]  # column values and second column is mean of pic's last row values
+        ProportionDark = np.divide(np.count_nonzero(selectedimage[149, :] < np.mean(selectedimage)), len(selectedimage[149, :]))
+        tempmeans = np.append(np.array([np.mean(selectedimage[:, 5]), np.mean(selectedimage[-1, :]), ProportionDark]), np.diag(selectedimage))
+        povfeatures = np.vstack([povfeatures, tempmeans])
+elif selectimgset == 1:  # Uses first column and bottom row if image is already trimmed
     for k in segimg:
-        tempmeans = np.array([np.mean(k[:, 0]), np.mean(k[-1, :])])
-        povfeatures = np.vstack([povfeatures, tempmeans])  # Makes an array of features, first column is mean of pic's left
-                                                        # column values and second column is mean of pic's last row values
-povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value [0,0] at the top of features array
-
+        ProportionDark = np.divide(np.count_nonzero(k[49, :] < np.mean(k)), len(k[49, :]))  # Proportion of dark pixels
+        # in row 50
+        tempmeans = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark]),np.diag(k))
+        povfeatures = np.vstack([povfeatures, tempmeans])
+povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value at the top of features array
 
 ## *****FOR TESTING ONLY***** ##
-testlabelpov = imgpov[:len(imagelist)]                #Change according to sample size
-
+testlabelpov = imgpov[:len(imagelist)]  # Change according to sample size
+print(povfeatures[0])
 xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, testlabelpov)
 model = AdaBoostClassifier(n_estimators=100)
-model.fit(xtrain,ytrain)
-ypredict=model.predict(xtest)
+model.fit(xtrain, ytrain)
+ypredict = model.predict(xtest)
 
 # ypredict = myf.LogisticRegressionPredict(xtrain,ytrain,xtest)
-print('Accuracy on test set: '+str(accuracy_score(ytest,ypredict)))
-print(classification_report(ytest,ypredict))
+print('Accuracy on test set: ' + str(accuracy_score(ytest, ypredict)))
+print(classification_report(ytest, ypredict))
 
 # si.imshow(segimg[1])
 # si.show()
