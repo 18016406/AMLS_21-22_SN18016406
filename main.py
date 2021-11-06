@@ -6,9 +6,10 @@ import csv
 from skimage.transform import resize
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier
 
 ## IMPORTING IMAGES ##
-imagelist = glob.glob('image/*.jpg')  # Creates list of names of JPEG files in specified folder
+imagelist = glob.glob('testimport/*.jpg')  # Creates list of names of JPEG files in specified folder
 images = np.array(
     [si.imread(image, as_gray=True) for image in imagelist])  # import images, ensuring grayscale, into a 3D ndarray
 
@@ -31,12 +32,14 @@ csvfile.close()
 ## TRIMMING AND SEGMENTING IMAGES ##
 trimmedimages = []
 for i in range(0, len(imagelist)):
-    trimmedimages.append(myf.trim0rows(images[i][:][:]))  # Creates a list of the imported images after being cropped
+    trimmedimages.append(myf.trimimg(images[i][:][:]))  # Creates a list of the imported images after being cropped
+for j in range(0, len(imagelist)):
+    si.imsave('trimmed/trimmedIMG_{}.jpg'.format(j), trimmedimages[j])
 
 segimg = []
-for j in trimmedimages:
+for k in trimmedimages:
     segimg.append(
-        resize(j, np.array([150, 100]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
+        resize(k, np.array([150, 100]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
 
 print('length of segmented images list: ', len(segimg))
 
@@ -61,7 +64,11 @@ povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value [0,0
 testlabelpov = imgpov[:len(imagelist)]                #Change according to sample size
 
 xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, testlabelpov)
-ypredict = myf.LogisticRegressionPredict(xtrain,ytrain,xtest)
+model = AdaBoostClassifier(n_estimators=100)
+model.fit(xtrain,ytrain)
+ypredict=model.predict(xtest)
+
+# ypredict = myf.LogisticRegressionPredict(xtrain,ytrain,xtest)
 print('Accuracy on test set: '+str(accuracy_score(ytest,ypredict)))
 print(classification_report(ytest,ypredict))
 
