@@ -2,6 +2,7 @@ import numpy as np
 import glob
 import func as myf
 import skimage.io as si
+from skimage import img_as_ubyte
 import csv
 from skimage.transform import resize
 from sklearn.model_selection import train_test_split
@@ -34,13 +35,14 @@ trimmedimages = []
 for i in range(0, len(imagelist)):
     trimmedimages.append(myf.trimimg(images[i][:][:]))  # Creates a list of the imported images after being cropped
 for j in range(0, len(imagelist)):
-    si.imsave('trimmed/trimmedIMG_{}.jpg'.format(j), trimmedimages[j])
+    si.imsave('trimmed/trimmedIMG_{}.jpg'.format(j), img_as_ubyte(trimmedimages[j]))
 
 segimg = []
 for k in trimmedimages:
     segimg.append(
-        resize(k, np.array([150, 100]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
-
+        resize(k, np.array([250, 200]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
+for l in range(0, len(segimg)):
+    si.imsave('normalized/normIMG_{}.jpg'.format(l), img_as_ubyte(segimg[l]))
 print('length of segmented images list: ', len(segimg))
 
 ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
