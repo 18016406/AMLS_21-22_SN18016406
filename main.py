@@ -3,6 +3,8 @@ import glob
 import func as myf
 import skimage.io as si
 from skimage import img_as_ubyte
+from sklearn.experimental import enable_halving_search_cv
+from sklearn.model_selection import HalvingRandomSearchCV
 import matplotlib.pyplot as plt
 import csv
 from skimage.transform import resize
@@ -72,19 +74,19 @@ testlabelpov = imgpov[:len(imagelist)]  # Change according to sample size
 
 xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, testlabelpov, random_state=0)
 
-scorelist = []
-nestimator = np.arange(5, 155, 10)
-for hypertune1 in nestimator:
-    model = AdaBoostClassifier(n_estimators=hypertune1,algorithm='SAMME.R',random_state=0)
-    model.fit(xtrain, ytrain)
-    ypredict = model.predict(xtest)
-    scorelist.append(accuracy_score(ytest, ypredict))
-scorelist = np.array(scorelist)
-plt.scatter(nestimator,scorelist)
-plt.show()
+param_grid = {
+    'n_estimators' : range(5,155,5),
+    'learning_rate' : [rate/10 for rate in range(2,20,2)]
+}
+base_model = AdaBoostClassifier(algorithm='SAMME.R',random_state=0)
+POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
+                               random_state=0, refit=True).fit(xtrain,ytrain)
+print('Best parameters: ', POVmodel.best_params_)
+print('Best score: ', POVmodel.best_score_)
+ypredict = POVmodel.predict(xtest)
 
-# print('Accuracy on test set: ' + str(accuracy_score(ytest, ypredict)))
-# print(classification_report(ytest, ypredict))
+print('Accuracy on test set: ' + str(accuracy_score(ytest, ypredict)))
+print(classification_report(ytest, ypredict))
 
 # si.imshow(segimg[1])
 # si.show()
