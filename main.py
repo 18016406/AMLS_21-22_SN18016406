@@ -4,11 +4,10 @@ import func as myf
 import skimage.io as si
 from skimage import img_as_ubyte
 from sklearn.experimental import enable_halving_search_cv
-from sklearn.model_selection import HalvingRandomSearchCV
 import matplotlib.pyplot as plt
 import csv
 from skimage.transform import resize
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
 
@@ -51,36 +50,24 @@ for k in trimmedimages:
 print('length of segmented images list: ', len(segimg))
 
 ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
-selectimgset = 1  # Select which img set to use in model (0 = before trimming/segmenting, 1 = after)
 povfeatures = np.zeros(203)
-if selectimgset == 0:
-    for k in range(0, len(imagelist)):  # Makes an array of features, first column is mean of pic's 6th
-        selectedimage = images[k][:][:]  # column values and second column is mean of pic's last row values
-        ProportionDark = np.divide(np.count_nonzero(selectedimage[149, :] < np.mean(selectedimage)),
-                                   len(selectedimage[149, :]))
-        tempmeans = np.append(np.array([np.mean(selectedimage[:, 5]), np.mean(selectedimage[-1, :]), ProportionDark]),
-                              np.diag(selectedimage))
-        povfeatures = np.vstack([povfeatures, tempmeans])
-elif selectimgset == 1:  # Uses first column and bottom row if image is already trimmed
-    for k in segimg:
-        ProportionDark = np.divide(np.count_nonzero(k[49, :] < np.mean(k)), len(k[49, :]))  # Proportion of dark pixels
-        # in row 50
-        tempmeans = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]),ProportionDark]), np.diag(k))
-        povfeatures = np.vstack([povfeatures, tempmeans])
+for k in segimg:
+    ProportionDark50 = np.divide(np.count_nonzero(k[49, :] < np.mean(k)), len(k[49, :]))  # Proportion of dark pixels
+    # in row 50
+    tempmeans = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark50]), np.diag(k))
+    povfeatures = np.vstack([povfeatures, tempmeans])
 povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value at the top of features array
 
-## *****FOR TESTING ONLY***** ##
-testlabelpov = imgpov[:len(imagelist)]  # Change according to sample size
-
-xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, testlabelpov, random_state=0)
-
+## USING ADABOOST CLASSIFIER TO PREDICT IMAGE POV ##
+POVLabel = imgpov[:len(imagelist)]  # For if we are not importing all images listed in CSV file
+xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, POVLabel, random_state=0)  # Split features & labels
 param_grid = {
-    'n_estimators' : range(5,155,5),
-    'learning_rate' : [rate/10 for rate in range(2,20,2)]
+    'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
+    'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
 }
-base_model = AdaBoostClassifier(algorithm='SAMME.R',random_state=0)
+base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
 POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
-                               random_state=0, refit=True).fit(xtrain,ytrain)
+                                 random_state=0, refit=True).fit(xtrain, ytrain)
 print('Best parameters: ', POVmodel.best_params_)
 print('Best score: ', POVmodel.best_score_)
 ypredict = POVmodel.predict(xtest)
