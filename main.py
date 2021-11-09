@@ -76,6 +76,34 @@ if len(segimg) > len(imgpov):                       # If there are images that d
     newimgPOV = POVmodel.predict(newimgfeatures)
     imgpov.append(newimgPOV)
 
+## SEPARATE DATASET INTO 3 LISTS ACCORDING TO POV ##
+povsortingmask = np.full(len(segimg), False, dtype=bool)    # Create a mask of boolean values to filter and take
+segimgarray = np.array(segimg)                              # only the values corresponding to required POV
+imglabelarray = np.array(imglabel)
+
+for i in range(0, len(imgpov)):
+    if imgpov[i] == 't':
+        povsortingmask[i] = True
+topviewimg = segimgarray[povsortingmask]
+topviewlabels = imglabelarray[povsortingmask]
+print('Number of top view images: ', len(topviewlabels))
+
+povsortingmask[:] = False
+for i in range(0, len(imgpov)):
+    if imgpov[i] == 's':
+        povsortingmask[i] = True
+sideviewimg = segimgarray[povsortingmask]
+sideviewlabels = imglabelarray[povsortingmask]
+print('Number of side view images: ', len(sideviewlabels))
+
+povsortingmask[:] = False
+for i in range(0, len(imgpov)):
+    if imgpov[i] == 'b':
+        povsortingmask[i] = True
+backviewimg = segimgarray[povsortingmask]
+backviewlabels = imglabelarray[povsortingmask]
+print('Number of back view images: ', len(backviewlabels))
+
 ## USING EDGE DETECTION ON ALL TEST IMAGES FOR FEATURE CONTRAST ##
 edgeimg = []
 for i in segimg:
