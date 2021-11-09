@@ -26,6 +26,15 @@ def trimimg(image):
         previmg = trimmed
     return trimmed
 
+def MakePOVfeaturesarray(segimg, numofsamples):
+    povfeatures = np.zeros((len(np.diag(segimg[0]))+3))
+    for k in segimg[:numofsamples]:
+        ProportionDark50 = np.divide(np.count_nonzero(k[49, :] < np.mean(k)),
+                                     len(k[49, :]))  # Proportion of dark pixels in row 50
+        features = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark50]), np.diag(k))
+        povfeatures = np.vstack([povfeatures, features])
+    povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value at the top of features array
+    return povfeatures
 
 def LogisticRegressionPredict(x_train, y_train, xtest):
     # Build Logistic Regression Model

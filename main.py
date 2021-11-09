@@ -2,11 +2,12 @@ import numpy as np
 import glob
 import func as myf
 import skimage.io as si
-from skimage import img_as_ubyte
-from sklearn.experimental import enable_halving_search_cv
-import matplotlib.pyplot as plt
 import csv
+import matplotlib.pyplot as plt
+from skimage import img_as_ubyte, filters
 from skimage.transform import resize
+from skimage.exposure import adjust_gamma
+from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.ensemble import AdaBoostClassifier
@@ -50,17 +51,11 @@ for k in trimmedimages:
 print('length of segmented images list: ', len(segimg))
 
 ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
-povfeatures = np.zeros(203)
-for k in segimg:
-    ProportionDark50 = np.divide(np.count_nonzero(k[49, :] < np.mean(k)), len(k[49, :]))  # Proportion of dark pixels
-    # in row 50
-    tempmeans = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark50]), np.diag(k))
-    povfeatures = np.vstack([povfeatures, tempmeans])
-povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value at the top of features array
+povfeatures = myf.MakePOVfeaturesarray(segimg,len(imgpov))
 
 ## USING ADABOOST CLASSIFIER TO PREDICT IMAGE POV ##
-POVLabel = imgpov[:len(imagelist)]  # For if we are not importing all images listed in CSV file
-xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, POVLabel, random_state=0)  # Split features & labels
+# POVLabel = imgpov[:len(imagelist)]  # For if we are not importing all images listed in CSV file
+xtrain, xtest, ytrain, ytest = train_test_split(povfeatures, imgpov, random_state=0)  # Split features & labels
 param_grid = {
     'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
     'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
@@ -71,9 +66,19 @@ POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=
 print('Best parameters: ', POVmodel.best_params_)
 print('Best score: ', POVmodel.best_score_)
 ypredict = POVmodel.predict(xtest)
-
-print('Accuracy on test set: ' + str(accuracy_score(ytest, ypredict)))
+print('Image POV prediction accuracy: ' + str(accuracy_score(ytest, ypredict)))
 print(classification_report(ytest, ypredict))
 
-# si.imshow(segimg[1])
-# si.show()
+if len(segimg) > len(imgpov):                       # If there are images that do not have labels (i.e. new test images)
+    numofextraimgs = len(segimg) - len(imgpov)      # Use model to predict labels and add them into the label list
+    extraimgs = segimg[-numofextraimgs:]
+    newimgfeatures = myf.MakePOVfeaturesarray(extraimgs,numofextraimgs)
+    newimgPOV = POVmodel.predict(newimgfeatures)
+    imgpov.append(newimgPOV)
+
+## USING EDGE DETECTION ON ALL TEST IMAGES FOR FEATURE CONTRAST ##
+edgeimg = []
+for i in segimg:
+    edgeimg.append(adjust_gamma(filters.sobel(i), gamma=1)) # Perform sobel edge detection and allow adjustable gamma
+# for j in range(0, len(edgeimg)):
+#     si.imsave('edged/EdgeDetectIMG_{}.jpg'.format(j), img_as_ubyte(edgeimg[j]))
