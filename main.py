@@ -6,6 +6,7 @@ import csv
 import matplotlib.pyplot as plt
 from skimage import img_as_ubyte, filters
 from skimage.transform import resize
+from sklearn.feature_selection import SelectPercentile, chi2
 from skimage.exposure import adjust_gamma
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
@@ -62,8 +63,14 @@ for k in segimg[:len(t1labels)]:
                      ,k[:,60],k[:,70],k[:,75],k[:,80],k[:,90],k[:,100],k[:,120],k[:,125],k[:,130]])
     t1features = np.vstack([t1features, t1temp])
 t1features = np.delete(t1features, 0, 0)  # Removes the initialized value at the top of features array
-t1xtrain, t1xtest, t1ytrain, t1ytest = train_test_split(t1features, t1labels, random_state=0)  # Split features & labels
+print('Shape of features array for Task 1: ', t1features.shape)
+t1reducedfeatures = SelectPercentile(chi2,percentile=5).fit_transform(t1features,t1labels)  #Chooses top 5% of features
+print('New reduced features array shape for Task 1: ', t1reducedfeatures.shape)             #based on chi-squared scoring
 
+t1xtrain, t1xtest, t1ytrain, t1ytest = train_test_split(t1reducedfeatures, t1labels, random_state=0)  # Split features & labels
+t1ypredict = myf.LogisticRegressionPredict(t1xtrain,t1ytrain,t1xtest)
+print('Binary prediction accuracy: ' + str(accuracy_score(t1ytest, t1ypredict)))
+print(classification_report(t1ytest, t1ypredict))
 
 # ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
 # povfeatures = myf.MakePOVfeaturesarray(segimg,len(imgpov))
