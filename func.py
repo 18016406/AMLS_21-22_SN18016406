@@ -1,6 +1,6 @@
 import numpy as np
-from skimage.transform import resize
 import skimage.io as si
+from skimage.transform import resize
 from skimage import img_as_ubyte
 
 
@@ -44,11 +44,12 @@ def trimandsegment(images):
 
 
 def MakePOVfeaturesarray(segimg, numofsamples):
-    povfeatures = np.zeros((len(np.diag(segimg[0])) + 3))
+    povfeatures = np.zeros((2*len(np.diag(segimg[0])) + 3))
     for k in segimg[:numofsamples]:
         ProportionDark50 = np.divide(np.count_nonzero(k[49, :] < np.mean(k)),
                                      len(k[49, :]))  # Proportion of dark pixels in row 50
-        features = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark50]), np.diag(k))
+        features = np.append(np.array([np.mean(k[:, 0]), np.mean(k[-1, :]), ProportionDark50]),
+                             np.append(np.diag(k), np.diag(np.fliplr(k))))
         povfeatures = np.vstack([povfeatures, features])
     povfeatures = np.delete(povfeatures, 0, 0)  # Removes the initialized value at the top of features array
     return povfeatures
