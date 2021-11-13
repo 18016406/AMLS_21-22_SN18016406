@@ -1,27 +1,26 @@
 import numpy as np
 import glob
 import func as myf
-import skimage.io as si
 import csv
-import matplotlib.pyplot as plt
-from skimage import img_as_ubyte, filters
-from skimage.transform import resize
-from sklearn.feature_selection import SelectPercentile, chi2
+import skimage.io as si
+from skimage import img_as_ubyte, filters, feature
 from skimage.exposure import adjust_gamma
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.experimental import enable_halving_search_cv
+from sklearn.feature_selection import SelectPercentile, chi2
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
 from sklearn.metrics import classification_report, accuracy_score
-from sklearn.ensemble import AdaBoostClassifier
-from skimage import feature
+
+t1flagtotest = int(input('Include testing on unseen image set? 0 for no, 1 for yes\n'))
+
 ## IMPORTING IMAGES ##
 imagelist = glob.glob('image/*.jpg')  # Creates list of names of JPEG files in specified folder
 images = np.array(
     [si.imread(image, as_gray=True) for image in imagelist])  # import images, ensuring grayscale, into a 3D ndarray
 for image in images:
     image[image > 0.98] = 0.99
-
 print('images array shape: ', images.shape)
-print('No. of images: ', len(imagelist))
 
 ## READING LABELS ##
 csvfile = open('labelapp.csv')
@@ -37,25 +36,14 @@ for row in labelsfile:
 csvfile.close()
 
 ## TRIMMING AND SEGMENTING IMAGES ##
-trimmedimages = []
-for i in range(0, len(imagelist)):
-    trimmedimages.append(myf.trimimg(images[i][:][:]))  # Creates a list of the imported images after being cropped
-# for j in range(0, len(imagelist)):
-#     si.imsave('trimmed/trimmedIMG_{}.jpg'.format(j), img_as_ubyte(trimmedimages[j]))
-
-segimg = []  # A list of images after normalizing to a standard resolution
-for k in trimmedimages:
-    segimg.append(
-        resize(k, np.array([250, 200]), anti_aliasing=True))  # Resizes images after trimming to normalize all sizes
-# for l in range(0, len(segimg)):
-#     si.imsave('normalized/normIMG_{}.jpg'.format(l), img_as_ubyte(segimg[l]))
-print('length of segmented images list: ', len(segimg))
+segimg = myf.trimandsegment(images)
+# print('length of segmented images list: ', len(segimg))
 
 ## TASK 1, BINARY CLASSIFICATION: PRESENCE/ABSENCE OF TUMOR ##
-t1labels = [x == 'no_tumor' for x in imglabel]      #Creates a separate labels list classifying only presence of tumor
-
-t1numoffeaturerows = 11
-t1numoffeaturecolumns = 9
+t1labels = [x != 'no_tumor' for x in imglabel]      #Creates a separate labels list classifying only presence of tumor
+#Creating feature vector and using feature selection#
+t1numoffeaturerows = 11         #Number of rows to use as feature
+t1numoffeaturecolumns = 9       #Number of columns to use as feature
 t1totalfeatures = (t1numoffeaturerows*200) + (t1numoffeaturecolumns*250)
 t1features = np.zeros(t1totalfeatures)
 for k in segimg[:len(t1labels)]:
@@ -63,14 +51,42 @@ for k in segimg[:len(t1labels)]:
                      ,k[:,60],k[:,70],k[:,75],k[:,80],k[:,90],k[:,100],k[:,120],k[:,125],k[:,130]])
     t1features = np.vstack([t1features, t1temp])
 t1features = np.delete(t1features, 0, 0)  # Removes the initialized value at the top of features array
-print('Shape of features array for Task 1: ', t1features.shape)
-t1reducedfeatures = SelectPercentile(chi2,percentile=5).fit_transform(t1features,t1labels)  #Chooses top 5% of features
-print('New reduced features array shape for Task 1: ', t1reducedfeatures.shape)             #based on chi-squared scoring
 
+# print('Shape of features array for Task 1: ', t1features.shape)
+
+t1selectfeatures = SelectPercentile(chi2,percentile=3)
+t1reducedfeatures=t1selectfeatures.fit_transform(t1features,t1labels)  #Chooses top 3% of features
+                                                                        #based on chi-squared scoring
+# print('New reduced features array shape for Task 1: ', t1reducedfeatures.shape)
+
+#Training model#
 t1xtrain, t1xtest, t1ytrain, t1ytest = train_test_split(t1reducedfeatures, t1labels, random_state=0)  # Split features & labels
-t1ypredict = myf.LogisticRegressionPredict(t1xtrain,t1ytrain,t1xtest)
+t1logreg = LogisticRegression(solver='sag', n_jobs=-1, max_iter=500)
+t1logreg.fit(t1xtrain, t1ytrain)
+t1ypredict = t1logreg.predict(t1xtest)
 print('Binary prediction accuracy: ' + str(accuracy_score(t1ytest, t1ypredict)))
-print(classification_report(t1ytest, t1ypredict))
+# print(classification_report(t1ytest, t1ypredict))
+
+if t1flagtotest == 1:       #This section is for using to classify on unseen data images in '/testimage/' folder
+                            #Will save results as a CSV file in root folder (same directory as main.py)
+    #Importing images not used in training#
+    t1testingimagelist = glob.glob('testimage/*.jpg')
+    t1testingimages = np.array(
+        [si.imread(image, as_gray=True) for image in t1testingimagelist])  #Import testing images as grayscale
+    for image in t1testingimages:
+        image[image > 0.98] = 0.99                                         #Make sure no pixels are above value 1
+    t1processedimgs = myf.trimandsegment(t1testingimages)                  #Trim and normalize image size
+    #Creating feature vector for testing set#
+    t1testfeatures = np.zeros(t1totalfeatures)
+    for k in t1processedimgs:
+        t1testtemp = np.concatenate([k[10,:],k[30,:],k[40,:],k[50,:],k[80,:],k[90,:],k[100,:],k[120,:],k[130,:],k[140,:],k[150,:]\
+                         ,k[:,60],k[:,70],k[:,75],k[:,80],k[:,90],k[:,100],k[:,120],k[:,125],k[:,130]])
+        t1testfeatures = np.vstack([t1testfeatures, t1testtemp])
+    t1testfeatures = np.delete(t1testfeatures, 0, 0)  # Removes the initialized value at the top of features array
+    t1testreducedfeatures = t1selectfeatures.transform(t1testfeatures)  #Select the same features as with training set
+    t1testingpredict = t1logreg.predict(t1testreducedfeatures)          #Use trained model to predict
+    np.savetxt('Binary classification test results.csv', [i for i in zip(t1testingimagelist, t1testingpredict)],
+               delimiter=',', fmt='%s')
 
 # ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
 # povfeatures = myf.MakePOVfeaturesarray(segimg,len(imgpov))
