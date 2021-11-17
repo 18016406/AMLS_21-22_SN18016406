@@ -5,10 +5,11 @@ import csv
 import skimage.io as si
 from skimage import img_as_ubyte, feature
 from skimage.exposure import adjust_gamma
+from skimage.transform import hough_ellipse
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.feature_selection import SelectPercentile, chi2
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
 from sklearn.metrics import classification_report, accuracy_score
 
@@ -54,7 +55,7 @@ segimg = myf.trimandsegment(images)
 #     processedtestimgs = myf.trimandsegment(testingimages)  # Trim and normalize image size
 #
 # ## TASK 1, BINARY CLASSIFICATION: PRESENCE/ABSENCE OF TUMOR ##
-# t1labels = [x != 'no_tumor' for x in imglabel]  # Creates a separate labels list classifying only presence of tumor
+t1labels = [x != 'no_tumor' for x in imglabel]  # Creates a separate labels list classifying only presence of tumor
 # # Creating feature vector and using feature selection#
 # t1numoffeaturerows = 11  # Number of rows to use as feature
 # t1numoffeaturecolumns = 9  # Number of columns to use as feature
@@ -72,9 +73,10 @@ segimg = myf.trimandsegment(images)
 #
 # # Choose top 3% of features based on chi-squared scoring
 # t1selectfeatures = SelectPercentile(chi2, percentile=3)
+#
 # t1reducedfeatures = t1selectfeatures.fit_transform(t1features, t1labels)
 # print('Number of features used for dataset in Task 1: ', t1reducedfeatures.shape[1])
-#
+# print('scores: ', t1selectfeatures.get_support())
 # # Training model#
 # t1xtrain, t1xtest, t1ytrain, t1ytest = train_test_split(t1reducedfeatures, t1labels,
 #                                                         random_state=0)  # Split features & labels
@@ -101,58 +103,30 @@ segimg = myf.trimandsegment(images)
 #     np.savetxt('Binary classification test results.csv', [i for i in zip(testingimagelist, t1testingpredict)],
 #                delimiter=',', fmt='%s')
 
-## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
-povfeatures = myf.MakePOVfeaturesarray(segimg, len(imgpov))
-povselectfeatures = SelectPercentile(chi2, percentile=40)  # Choose top 40% features to use in model
-reducedpovfeatures = povselectfeatures.fit_transform(povfeatures, imgpov)
-print('Number of features for POV classification: ', reducedpovfeatures.shape[1])
-
-## USING ADABOOST CLASSIFIER TO PREDICT IMAGE POV ##
-povxtrain, povxtest, povytrain, povytest = train_test_split(reducedpovfeatures, imgpov, random_state=0)
-
-param_grid = {
-    'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
-    'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
-}
-base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
-POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
-                                 random_state=0, refit=True).fit(povxtrain, povytrain)
-print('Best parameters: ', POVmodel.best_params_)
-print('Best score: ', POVmodel.best_score_)
-
-povypredict = POVmodel.predict(povxtest)
-print('-------------------------------------------------------')
-print('Image POV prediction accuracy: ' + str(accuracy_score(povytest, povypredict)))
-print(classification_report(povytest, povypredict))
-print('-------------------------------------------------------')
-
-## SEPARATE DATASET INTO 3 LISTS ACCORDING TO POV ##
-povsortingmask = np.full(len(segimg), False, dtype=bool)  # Create a mask of boolean values to filter and take
-segimgarray = np.array(segimg)  # only the values corresponding to required POV
-imglabelarray = np.array(imglabel)
-
-for i in range(0, len(imgpov)):
-    if imgpov[i] == 't':
-        povsortingmask[i] = True
-topviewimg = segimgarray[povsortingmask]
-topviewlabels = imglabelarray[povsortingmask]
-print('Number of top view images: ', len(topviewlabels))
-
-povsortingmask[:] = False
-for i in range(0, len(imgpov)):
-    if imgpov[i] == 's':
-        povsortingmask[i] = True
-sideviewimg = segimgarray[povsortingmask]
-sideviewlabels = imglabelarray[povsortingmask]
-print('Number of side view images: ', len(sideviewlabels))
-
-povsortingmask[:] = False
-for i in range(0, len(imgpov)):
-    if imgpov[i] == 'b':
-        povsortingmask[i] = True
-backviewimg = segimgarray[povsortingmask]
-backviewlabels = imglabelarray[povsortingmask]
-print('Number of back view images: ', len(backviewlabels))
+# ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
+# povfeatures = myf.MakePOVfeaturesarray(segimg, len(imgpov))
+# povselectfeatures = SelectPercentile(chi2, percentile=40)  # Choose top 40% features to use in model
+# reducedpovfeatures = povselectfeatures.fit_transform(povfeatures, imgpov)
+# print('Number of features for POV classification: ', reducedpovfeatures.shape[1])
+#
+# ## USING ADABOOST CLASSIFIER TO PREDICT IMAGE POV ##
+# povxtrain, povxtest, povytrain, povytest = train_test_split(reducedpovfeatures, imgpov, random_state=0)
+#
+# param_grid = {
+#     'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
+#     'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
+# }
+# base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
+# POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
+#                                  random_state=0, refit=True).fit(povxtrain, povytrain)
+# print('Best parameters: ', POVmodel.best_params_)
+# print('Best score: ', POVmodel.best_score_)
+#
+# povypredict = POVmodel.predict(povxtest)
+# print('-------------------------------------------------------')
+# print('Image POV prediction accuracy: ' + str(accuracy_score(povytest, povypredict)))
+# print(classification_report(povytest, povypredict))
+# print('-------------------------------------------------------')
 
 ## USING EDGE DETECTION ON ALL TEST IMAGES FOR FEATURE CONTRAST ##
 # edgeimg = []
@@ -161,3 +135,32 @@ print('Number of back view images: ', len(backviewlabels))
 #         adjust_gamma(feature.canny(i, sigma=1.5), gamma=1))  # Perform sobel edge detection and allow adjustable gamma
 # for j in range(0, len(edgeimg)):
 #     si.imsave('edged/EdgeDetectIMG_{}.jpg'.format(j), img_as_ubyte(edgeimg[j]))
+
+numericalpov = []
+for i in imgpov:                #Change char label of POV into a numerical value to use in a numpy array
+    if i == 't':
+        numericalpov.append(0)
+    elif i == 's':
+        numericalpov.append(0.5)
+    else:
+        numericalpov.append(1)
+
+#Features to use consists of every single pixel value of the image, a numerical value representing POV of the image
+    #and a boolean value of whether the image has a tumor or not. This boolean value will be obtained from task 1
+t2bigfeatures = np.append(np.append(segimg[0].flatten(), numericalpov[0]),t1labels[0])
+for i in range(1, len(numericalpov)):
+    t2bigfeatures = np.vstack([t2bigfeatures,np.append(np.append(segimg[i].flatten(),numericalpov[i]),t1labels[i])])
+t2selectfeatures = SelectPercentile(chi2, percentile=5) #Select only the top 5% performing features
+t2reducedfeatures = t2selectfeatures.fit_transform(t2bigfeatures, imglabel)
+print('Number of features for Task 2 classification: ', t2reducedfeatures.shape[1])
+
+## USING ADABOOST CLASSIFIER TO PREDICT TYPE OF TUMOR ##
+t2xtrain, t2xtest, t2ytrain, t2ytest = train_test_split(t2reducedfeatures, imglabel, random_state=0)
+
+t2_base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
+t2model = t2_base_model.fit(t2xtrain, t2ytrain)
+t2ypredict = t2model.predict(t2xtest)
+print('-------------------------------------------------------')
+print('Task 2 prediction accuracy: ' + str(accuracy_score(t2ytest, t2ypredict)))
+print(classification_report(t2ytest, t2ypredict))
+print('-------------------------------------------------------')
