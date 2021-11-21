@@ -10,6 +10,8 @@ Image dataset for training models are located in a folder named *'image'*. The c
 
 With task 1, the output of the program is a CSV file in the root directory called *'Binary classification test results.csv'*. Inside the file will be 2 columns; the first column is the testing image names and the second is the classification result. **False** means no tumor is detected, **True** means a tumor is detected
 
+Task 2's output from the program is a CSV file, also in the root directory called *'Multiclass classification test results.csv'* and follows the same format as in task 1 except that the second column is a string that indicates the tumor type rather than a boolean value.
+
 ***Python environment should have the following additional libraries installed along with any prerequisites:***
 
 numpy
@@ -29,7 +31,5 @@ sklearn
   image               -----Folder containing all images for testing (images given by the zip files in 3 parts)
 
   normalized          -----Empty folder where normalized images will be saved into
-
-  edged               -----Empty folder where edge detected images will be saved into
 
   testimage	          -----Empty folder to put in images not in training set to use model(s) on
