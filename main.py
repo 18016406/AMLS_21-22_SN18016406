@@ -2,6 +2,7 @@ import numpy as np
 import glob
 import func as myf
 import csv
+import matplotlib.pyplot as plt
 import skimage.io as si
 from skimage import img_as_ubyte, feature
 from skimage.exposure import adjust_gamma
@@ -11,7 +12,8 @@ from sklearn.experimental import enable_halving_search_cv
 from sklearn.feature_selection import SelectPercentile, chi2
 from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.preprocessing import minmax_scale
 
 flagtotest = int(input('Include testing on unseen image set? 0 for no, 1 for yes\n'))
 if flagtotest == 1:
@@ -43,7 +45,7 @@ csvfile.close()
 
 ## TRIMMING AND SEGMENTING IMAGES ##
 segimg = myf.trimandsegment(images)
-print('length of segmented images list: ', len(segimg))
+print('length of processed images list: ', len(segimg))
 if flagtotest == 1:
     # This section is for using program to classify on unseen data images in '/testimage/' folder
     # Process testing images to trim and normalize size as we do with training set
@@ -85,6 +87,10 @@ t1ypredict = t1logreg.predict(t1xtest)
 print('-------------------------------------------------------')
 print('Binary prediction accuracy: ' + str(accuracy_score(t1ytest, t1ypredict)))
 print(classification_report(t1ytest, t1ypredict))
+# conf = confusion_matrix(t1ytest, t1ypredict, labels=t1logreg.classes_)
+# disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t1logreg.classes_)
+# disp.plot()
+# plt.show()
 print('-------------------------------------------------------')
 
 if flagtotest == 1:
@@ -143,7 +149,7 @@ for i in imgpov:  # Change char label of POV into a numerical value to use in a 
 t2bigfeatures = np.append(np.append(segimg[0].flatten(), numericalpov[0]), t1labels[0])
 for i in range(1, len(numericalpov)):
     t2bigfeatures = np.vstack([t2bigfeatures, np.append(np.append(segimg[i].flatten(), numericalpov[i]), t1labels[i])])
-t2selectfeatures = SelectPercentile(chi2, percentile=5)  # Select only the top 5% performing features
+t2selectfeatures = SelectPercentile(chi2, percentile=3)  # Select only the top 5% performing features
 t2reducedfeatures = t2selectfeatures.fit_transform(t2bigfeatures, imglabel)
 print('Number of features for Task 2 classification: ', t2reducedfeatures.shape[1])
 
@@ -157,6 +163,10 @@ t2ypredict = t2model.predict(t2xtest)
 print('-------------------------------------------------------')
 print('Task 2 prediction accuracy: ' + str(accuracy_score(t2ytest, t2ypredict)))
 print(classification_report(t2ytest, t2ypredict))
+conf = confusion_matrix(t2ytest, t2ypredict, labels=t2model.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.classes_)
+disp.plot()
+plt.show()
 print('-------------------------------------------------------')
 
 if flagtasktotest == 2 or flagtasktotest == 3:
