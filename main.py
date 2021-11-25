@@ -4,16 +4,13 @@ import func as myf
 import csv
 import matplotlib.pyplot as plt
 import skimage.io as si
-from skimage import img_as_ubyte, feature
-from skimage.exposure import adjust_gamma
-from skimage.transform import hough_ellipse
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.feature_selection import SelectPercentile, chi2
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, HalvingRandomSearchCV
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.preprocessing import minmax_scale
+from sklearn.neural_network import MLPClassifier
 
 flagtotest = int(input('Include testing on unseen image set? 0 for no, 1 for yes\n'))
 if flagtotest == 1:
@@ -119,21 +116,26 @@ print('Number of features for POV classification: ', reducedpovfeatures.shape[1]
 ## USING ADABOOST CLASSIFIER TO PREDICT IMAGE POV ##
 povxtrain, povxtest, povytrain, povytest = train_test_split(reducedpovfeatures, imgpov, random_state=0)
 
-param_grid = {
-    'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
-    'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
-}
-base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
-POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
-                                 random_state=0, refit=True).fit(povxtrain, povytrain)
-print('Best parameters: ', POVmodel.best_params_)
-print('Best score: ', POVmodel.best_score_)
+# ## USING HALVING SEARCH TO FIND OPTIMAL PARAMETERS FOR ADABOOST CLASSIFIER FOR POV ##
+# param_grid = {
+#     'n_estimators': range(5, 155, 5),  # Create a dictionary of parameters to try out for optimization
+#     'learning_rate': [rate / 10 for rate in range(2, 20, 2)]
+# }
+# base_model = AdaBoostClassifier(algorithm='SAMME.R', random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
+# POVmodel = HalvingRandomSearchCV(base_model, param_grid, cv=5, factor=2, n_jobs=-1,
+#                                  random_state=0, refit=True).fit(povxtrain, povytrain)
+# print('Best parameters: ', POVmodel.best_params_)
+
+
+POVmodel = AdaBoostClassifier(algorithm='SAMME.R', random_state=0, n_estimators=105, learning_rate=0.8).fit(povxtrain,povytrain)
+#To save resources and time, fit the classifier with previously found optimal parameters
 
 povypredict = POVmodel.predict(povxtest)
 print('-------------------------------------------------------')
 print('Image POV prediction accuracy: ' + str(accuracy_score(povytest, povypredict)))
 print(classification_report(povytest, povypredict))
 print('-------------------------------------------------------')
+print('Please wait...')
 
 numericalpov = []
 for i in imgpov:  # Change char label of POV into a numerical value to use in a numpy array
@@ -144,21 +146,35 @@ for i in imgpov:  # Change char label of POV into a numerical value to use in a 
     else:
         numericalpov.append(1)
 
+t1fulltestingpredict = t1logreg.predict(t1reducedfeatures) #Use Task 1 model to predict presence of tumor in all samples
+
 # Features to use consists of every single pixel value of the image, a numerical value representing POV of the image
 # and a boolean value of whether the image has a tumor or not. This boolean value will be obtained from task 1
-t2bigfeatures = np.append(np.append(segimg[0].flatten(), numericalpov[0]), t1labels[0])
+t2bigfeatures = np.append(np.append(segimg[0].flatten(), numericalpov[0]), t1fulltestingpredict[0])
 for i in range(1, len(numericalpov)):
-    t2bigfeatures = np.vstack([t2bigfeatures, np.append(np.append(segimg[i].flatten(), numericalpov[i]), t1labels[i])])
-t2selectfeatures = SelectPercentile(chi2, percentile=3)  # Select only the top 5% performing features
+    t2bigfeatures = np.vstack([t2bigfeatures, np.append(np.append(segimg[i].flatten(), numericalpov[i]), t1fulltestingpredict[i])])
+t2selectfeatures = SelectPercentile(chi2, percentile=3)  # Select only the top 3% performing features
 t2reducedfeatures = t2selectfeatures.fit_transform(t2bigfeatures, imglabel)
 print('Number of features for Task 2 classification: ', t2reducedfeatures.shape[1])
 
-## USING ADABOOST CLASSIFIER TO PREDICT TYPE OF TUMOR ##
+## USING MULTI LAYER PERCEPTRON CLASSIFIER TO PREDICT TYPE OF TUMOR ##
 t2xtrain, t2xtest, t2ytrain, t2ytest = train_test_split(t2reducedfeatures, imglabel, random_state=0)
 
-t2_base_model = AdaBoostClassifier(algorithm='SAMME.R',
-                                   random_state=0)  # Using AdaBoost Classifier with SAMME.R algorithm
-t2model = t2_base_model.fit(t2xtrain, t2ytrain)
+# ## OPTIMISING PARAMETERS FOR MLP CLASSIFIER ##
+# t2param_grid = {
+#     'hidden_layer_sizes': range(100, 300, 10),  # Create a dictionary of parameters to try out for optimization
+#     'alpha': [rate / 10000 for rate in range(1, 10)],
+#     'learning_rate_init': [lrate / 10000 for lrate in range(1, 80, 5)]
+# }
+# t2_base_model = MLPClassifier(activation='relu', solver='adam', random_state=0, max_iter=1000)
+# t2model = HalvingRandomSearchCV(t2_base_model, t2param_grid, cv=5, factor=2, n_jobs=-1,
+#                                  random_state=0, refit=True).fit(t2xtrain, t2ytrain)
+# print('Best parameters: ', t2model.best_params_)
+
+#Save resources and time by fitting with previously found optimised parameters
+t2model = MLPClassifier(activation='relu', solver='adam', random_state=0, max_iter=1000, hidden_layer_sizes=200,
+                        alpha=0.0009, learning_rate_init=0.0006).fit(t2xtrain, t2ytrain)
+
 t2ypredict = t2model.predict(t2xtest)
 print('-------------------------------------------------------')
 print('Task 2 prediction accuracy: ' + str(accuracy_score(t2ytest, t2ypredict)))
@@ -168,6 +184,7 @@ disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.clas
 disp.plot()
 plt.show()
 print('-------------------------------------------------------')
+
 
 if flagtasktotest == 2 or flagtasktotest == 3:
     t2testpovfeatures = myf.MakePOVfeaturesarray(processedtestimgs, len(processedtestimgs))

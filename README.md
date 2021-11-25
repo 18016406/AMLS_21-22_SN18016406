@@ -6,7 +6,10 @@ For Task number 2, if a tumor is present, it is further categorized into 3 subca
 
 ***How to use:***
 
-Image dataset for training models are located in a folder named *'image'*. The corresponding appended labels CSV file for training is located in the root folder of the program (same folder as main.py).
+Image dataset for training models should be located in a folder named *'image'*. The corresponding appended labels CSV file for training is located in the root folder of the program (same folder as main.py).
+
+Running the program should first prompt you if you want to test on unseen data. Input 1 if you have MRI scan images in the folder *'testimage'* in the root folder. Input 0 if you don't want to test on unseen data and
+only want to see training/testing results on the initial 3000 images dataset.
 
 With task 1, the output of the program is a CSV file in the root directory called *'Binary classification test results.csv'*. Inside the file will be 2 columns; the first column is the testing image names and the second is the classification result. **False** means no tumor is detected, **True** means a tumor is detected
 
@@ -20,7 +23,7 @@ skimage
 
 sklearn
 
-***Folder directory should have:***
+***Folder root directory should have:***
 
   main.py             -----Main script
 
