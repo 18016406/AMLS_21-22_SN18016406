@@ -208,3 +208,4 @@ if flagtasktotest == 2 or flagtasktotest == 3:
     np.savetxt('Multiclass classification test results.csv', [i for i in zip(testingimagelist, t2testresults)],
                delimiter=',', fmt='%s')
     print('**Task 2 prediction saved to file!**')
+    #Print classification report on unseen data

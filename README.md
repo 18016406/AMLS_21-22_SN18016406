@@ -8,7 +8,7 @@ For Task number 2, if a tumor is present, it is further categorized into 3 subca
 
 Image dataset for training models should be located in a folder named *'image'*. The corresponding appended labels CSV file for training is located in the root folder of the program (same folder as main.py).
 
-Run program with main.py
+Run program with main.py. Code run time: 13 minutes with Intel core i7-10750H when not performing hyper-parameter optimizing
 
 Running the program should first prompt you if you want to test on unseen data. Input 1 if you have MRI scan images in the folder *'testimage'* in the root folder. Input 0 if you don't want to test on unseen data and
 only want to see training/testing results on the initial 3000 images dataset.
