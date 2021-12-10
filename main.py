@@ -43,6 +43,7 @@ csvfile.close()
 ## TRIMMING AND SEGMENTING IMAGES ##
 segimg = myf.trimandsegment(images)
 print('length of processed images list: ', len(segimg))
+
 if flagtotest == 1:
     # This section is for using program to classify on unseen data images in '/testimage/' folder
     # Process testing images to trim and normalize size as we do with training set
@@ -52,6 +53,16 @@ if flagtotest == 1:
     for image in testingimages:
         image[image > 0.98] = 0.99  # Make sure no pixels are above value 1
     processedtestimgs = myf.trimandsegment(testingimages)  # Trim and normalize image size
+    ### READ TESTING IMAGE LABELS ###
+    testcsvfile = open('testlabel.csv')
+    testlabelsfile = csv.reader(testcsvfile, delimiter=',')
+    testimgname = []
+    testimglabel = []
+    testlabelsfile.__next__()
+    for row in testlabelsfile:
+        testimgname.append(row[0])
+        testimglabel.append(row[1])
+    testcsvfile.close()
 
 ## TASK 1, BINARY CLASSIFICATION: PRESENCE/ABSENCE OF TUMOR ##
 t1labels = [x != 'no_tumor' for x in imglabel]  # Creates a separate labels list classifying only presence of tumor
@@ -106,6 +117,16 @@ if flagtotest == 1:
         np.savetxt('Binary classification test results.csv', [i for i in zip(testingimagelist, t1testingpredict)],
                    delimiter=',', fmt='%s')
         print('**Task 1 prediction saved to file!**')
+        testingbinarylables = [x != 'no_tumor' for x in testimglabel]
+        # Creates a separate labels list classifying only presence of tumor
+        print('-------------------------------------------------------')
+        print('Testing set Task 1 prediction accuracy: ' + str(accuracy_score(testingbinarylables, t1testingpredict)))
+        print(classification_report(testingbinarylables, t1testingpredict))
+        # conf = confusion_matrix(t2ytest, t2ypredict, labels=t2model.classes_)
+        # disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.classes_)
+        # disp.plot()
+        # plt.show()
+        print('-------------------------------------------------------')
 
 ## CREATING ARRAY OF FEATURES FOR IMAGE POV DETECTION ##
 povfeatures = myf.MakePOVfeaturesarray(segimg, len(imgpov))
@@ -208,29 +229,6 @@ if flagtasktotest == 2 or flagtasktotest == 3:
     np.savetxt('Multiclass classification test results.csv', [i for i in zip(testingimagelist, t2testresults)],
                delimiter=',', fmt='%s')
     print('**Task 2 prediction saved to file!**')
-
-    ### READ TESTING IMAGE LABELS ###
-    testcsvfile = open('testlabel.csv')
-    testlabelsfile = csv.reader(testcsvfile, delimiter=',')
-    testimgname = []
-    testimglabel = []
-    testlabelsfile.__next__()
-    for row in testlabelsfile:
-        testimgname.append(row[0])
-        testimglabel.append(row[1])
-    testcsvfile.close()
-
-    testingbinarylables = [x != 'no_tumor' for x in testimglabel]  # Creates a separate labels list classifying only presence of tumor
-
-    ### COMPARING PREDICTED LABELS WITH TRUE LABELS FOR TESTING SET ###
-    print('-------------------------------------------------------')
-    print('Testing set Task 1 prediction accuracy: ' + str(accuracy_score(testingbinarylables, t1testingpredict)))
-    print(classification_report(testingbinarylables, t1testingpredict))
-    # conf = confusion_matrix(t2ytest, t2ypredict, labels=t2model.classes_)
-    # disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.classes_)
-    # disp.plot()
-    # plt.show()
-    print('-------------------------------------------------------')
     print('-------------------------------------------------------')
     print('Testing set Task 2 prediction accuracy: ' + str(accuracy_score(testimglabel, t2testresults)))
     print(classification_report(testimglabel, t2testresults))
