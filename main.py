@@ -208,4 +208,34 @@ if flagtasktotest == 2 or flagtasktotest == 3:
     np.savetxt('Multiclass classification test results.csv', [i for i in zip(testingimagelist, t2testresults)],
                delimiter=',', fmt='%s')
     print('**Task 2 prediction saved to file!**')
-    #Print classification report on unseen data
+
+    ### READ TESTING IMAGE LABELS ###
+    testcsvfile = open('testlabel.csv')
+    testlabelsfile = csv.reader(testcsvfile, delimiter=',')
+    testimgname = []
+    testimglabel = []
+    testlabelsfile.__next__()
+    for row in testlabelsfile:
+        testimgname.append(row[0])
+        testimglabel.append(row[1])
+    testcsvfile.close()
+
+    testingbinarylables = [x != 'no_tumor' for x in testimglabel]  # Creates a separate labels list classifying only presence of tumor
+
+    ### COMPARING PREDICTED LABELS WITH TRUE LABELS FOR TESTING SET ###
+    print('-------------------------------------------------------')
+    print('Testing set Task 1 prediction accuracy: ' + str(accuracy_score(testingbinarylables, t1testingpredict)))
+    print(classification_report(testingbinarylables, t1testingpredict))
+    # conf = confusion_matrix(t2ytest, t2ypredict, labels=t2model.classes_)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.classes_)
+    # disp.plot()
+    # plt.show()
+    print('-------------------------------------------------------')
+    print('-------------------------------------------------------')
+    print('Testing set Task 2 prediction accuracy: ' + str(accuracy_score(testimglabel, t2testresults)))
+    print(classification_report(testimglabel, t2testresults))
+    # conf = confusion_matrix(t2ytest, t2ypredict, labels=t2model.classes_)
+    # disp = ConfusionMatrixDisplay(confusion_matrix=conf, display_labels=t2model.classes_)
+    # disp.plot()
+    # plt.show()
+    print('-------------------------------------------------------')

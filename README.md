@@ -6,7 +6,8 @@ For Task number 2, if a tumor is present, it is further categorized into 3 subca
 
 ***How to use:***
 
-Image dataset for training models should be located in a folder named *'image'*. The corresponding appended labels CSV file for training is located in the root folder of the program (same folder as main.py).
+Image dataset for training models should be located in a folder named *'image'* (image.rar parts, extract all into the folder). The corresponding appended labels CSV file (*'labelapp.csv'*) for training is located in the root folder of the program (same folder as main.py).
+Testing dataset to check for overfitting images given in testimage.rar file, extract to a folder named *'testimage'* just like with training image. The corresponding labels file is given as *'testlabel.csv'* 
 
 Run program with main.py. Code run time: 13 minutes with Intel core i7-10750H when not performing hyper-parameter optimizing
 
@@ -39,4 +40,6 @@ matplotlib
 
   normalized          -----Empty folder where normalized images will be saved into
 
-  testimage	          -----Empty folder to put in images not in training set to use model(s) on
+  testimage	          -----Empty folder to put in images not in training set to use model(s) on (some images given in *'testimage.rar'* with accompanying *'testlabel.csv'*)
+
+  testlabel.csv       -----CSV file containing image names and tumor labels for the additional testing images in *'testimage.rar'*
