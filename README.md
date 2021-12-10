@@ -40,6 +40,6 @@ matplotlib
 
   normalized          -----Empty folder where normalized images will be saved into
 
-  testimage	          -----Empty folder to put in images not in training set to use model(s) on (some images given in *'testimage.rar'* with accompanying *'testlabel.csv'*)
+  testimage	          -----Folder to put in images not in training set to use model(s) on (some images given in *'testimage.rar'* with accompanying *'testlabel.csv'*)
 
   testlabel.csv       -----CSV file containing image names and tumor labels for the additional testing images in *'testimage.rar'*
